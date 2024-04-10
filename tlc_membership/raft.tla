@@ -942,6 +942,37 @@ NextDynamic ==
     \/ \E i, j \in Server : AddNewServer(i, j)
     \/ \E i, j \in Server : DeleteServer(i, j)
 
+ConstraintReceive(s,d,t) ==
+    \E m \in DOMAIN messages:
+        /\ m.mtype = t 
+        /\ m.msource = s
+        /\ m.mdest = d
+        /\ Receive(m)
+
+ActionConstraint ==
+    LET 
+        l == TLCGet("level")
+        A == CHOOSE s \in InitServer: TRUE
+        B == CHOOSE s \in (InitServer\{A}): TRUE
+        C == CHOOSE s \in (InitServer\{A,B}): TRUE 
+        u == << Timeout(B), Timeout(C), 
+                RequestVote(B, A), ConstraintReceive(B,A,RequestVoteRequest), ConstraintReceive(B,A,RequestVoteRequest),
+                RequestVote(C, C), ConstraintReceive(C,C,RequestVoteRequest),ConstraintReceive(C,C,RequestVoteResponse),
+                RequestVote(C, B), ConstraintReceive(C,B,RequestVoteRequest),ConstraintReceive(B,C,RequestVoteResponse),
+                BecomeLeader(C),
+                ClientRequest(C, 1),
+                AppendEntries(C, A), ConstraintReceive(C,A,AppendEntriesRequest),ConstraintReceive(C,A,AppendEntriesRequest),
+                ConstraintReceive(A,C,AppendEntriesResponse),
+                AdvanceCommitIndex(C),
+                ClientRequest(C, 1),
+                AppendEntries(C, A), ConstraintReceive(C,A,AppendEntriesRequest),ConstraintReceive(C,A,AppendEntriesRequest) >>
+    IN 
+        IF l \in DOMAIN u THEN 
+            /\ u[l] 
+            /\ PrintT(<<"Step", l>>)
+        ELSE 
+            Assert(FALSE, "EOB")
+
 \* The specification must start with the initial state and transition according
 \* to Next.
 Spec == Init /\ [][Next]_vars
